@@ -78,6 +78,7 @@ CodeSource::non_returning_funcs =
     boost::assign::map_list_of
         ("exit",true)
         ("abort",true)
+        ("_exit",true)
         ("__f90_stop",true)
         ("fancy_abort",true)
         ("__stack_chk_fail",true)
