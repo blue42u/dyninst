@@ -846,7 +846,6 @@ Parser::finalize(Function *f)
              ParseAPI::Edge *e = *eit;
              // Tail call corretions are only relevant to non-sink COND_TAKEN or non-sink DIRECT edges
              if (e->sinkEdge()) continue;
-             if (e->type() != COND_TAKEN && e->type() != DIRECT && e->type() != FALLTHROUGH) continue;
 
              Block* trg_block = e->trg();
              bool trg_has_call_edge = false;
@@ -859,6 +858,18 @@ Parser::finalize(Function *f)
                  }
              }
 
+             if(e->type() == FALLTHROUGH) {
+               Function *trg_func = findFuncByEntry(trg_block->region(), trg_block->start());
+               if (trg_func && trg_func->src() == HINT) {
+                   if(e->interproc()) continue;
+                   e->_type._interproc = true;
+                   parsing_printf("from %lx to %lx, marked as tail call (target is a function entry), re-finalize\n", b->last(), e->trg()->start());
+                   return false;
+               }
+             }
+
+             if (e->type() != COND_TAKEN && e->type() != DIRECT) continue;
+
              // Rule 1:
              // If an edge is currently not a tail call, but the edge target has a CALL incoming edge,
              // the current edge should be marked as a tail call
@@ -868,20 +879,15 @@ Parser::finalize(Function *f)
                  return false;
              }
 
-             // Look up the tail call target.
-             // If the target is created from a symbol, then make sure its a tail call
-             Function *trg_func = findFuncByEntry(trg_block->region(), trg_block->start());
-             if (trg_func && trg_func->src() == HINT) {
-                 if(e->interproc()) continue;
-                 e->_type._interproc = true;
-                 parsing_printf("from %lx to %lx, marked as tail call (target is a function entry), re-finalize\n", b->last(), e->trg()->start());
-                 return false;
-             }
-
              // Now let's deal with fliping tail-call to not-tail-call
              // If the target has a CALL incoming edge, or the current edge
              // is currently not marked as tail call, then we can skip this edge
              if (trg_has_call_edge || !e->interproc()) continue;
+
+             // Look up the tail call target.
+             // If the target is created from a symbol, then make sure its a tail call
+             Function *trg_func = findFuncByEntry(trg_block->region(), trg_block->start());
+             if (trg_func && trg_func->src() == HINT) continue;
 
              // If the edge source and the edge target are in different sections,
              // the edge is a tail call.
