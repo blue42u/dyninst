@@ -858,7 +858,7 @@ Parser::finalize(Function *f)
                  }
              }
 
-             if(e->type() == FALLTHROUGH) {
+             if(e->type() == FALLTHROUGH || e->type() == CALL_FT) {
                Function *trg_func = findFuncByEntry(trg_block->region(), trg_block->start());
                if (trg_func && trg_func->src() == HINT) {
                    if(e->interproc()) continue;
