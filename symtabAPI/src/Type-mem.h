@@ -43,7 +43,7 @@ static T *upgradePlaceholder(Type *placeholder, T *new_type)
 {
     assert(sizeof(T) <= Type::max_size);
     memset(static_cast<void*>(placeholder), 0, Type::max_size);
-    T* ret = new(placeholder) T{};
+    T* ret = new((void*)placeholder) T{};
     assert(static_cast<void*>(placeholder) == static_cast<void*>(ret));
     *ret = *new_type;
     return ret;

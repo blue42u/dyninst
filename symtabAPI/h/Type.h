@@ -35,6 +35,7 @@
 #include "symutil.h"
 #include "concurrent.h"
 
+#include <new>
 #include <boost/atomic.hpp>
 #include <mutex>
 #include <boost/smart_ptr/make_shared.hpp>
@@ -115,20 +116,28 @@ class SYMTAB_EXPORT Type : public  TYPE_ANNOTATABLE_CLASS
    boost::weak_ptr<Type> self_;  // For carrying the reference count across
                                  // the older pointer-based API.
 
-   public:
+ private:
+   // Disallow allocating new
+   static void* operator new(std::size_t) = delete;
+   static void* operator new[](std::size_t) = delete;
+
+ public:
+   // Allow placement new and placement delete. Both no-op by default.
+   static void* operator new(std::size_t sz, void* ptr) { return ::operator new(sz, ptr); }
+   static void* operator new[](std::size_t sz, void* ptr) { return ::operator new(sz, ptr); }
    
    enum do_share_t { share };
    
    template<class T, class... Args>
    static boost::shared_ptr<T> make_shared(Args&&... args) {
-     auto sp = boost::make_shared<T>(std::forward<Args>(args)...);
+     auto sp = boost::allocate_shared<T>(dyn_allocator<T>(), std::forward<Args>(args)...);
      sp->reshare(sp);
      return sp;
    }
    
    boost::shared_ptr<Type> reshare() {
      boost::shared_ptr<Type> r = self_.lock();
-     if(!r) self_ = (r = boost::shared_ptr<Type>(this));
+     if(!r) std::abort();
      return r;
    }
    void reshare(boost::shared_ptr<Type> const & sp) {
@@ -174,20 +183,10 @@ public:
    virtual ~Type() = default;
    Type& operator=(const Type&) = default;
 
-   // Fake unique_ptr type. TODO: Replace with std::unique_ptr for C++11
-   class unique_ptr_Type {
-      Type* ptr;
-   public:
-      unique_ptr_Type(Type* p) : ptr(p) {}
-      operator boost::shared_ptr<Type>() {
-         return ptr->reshare();
-      }
-      operator Type*() { return ptr; }
-   };
    // A few convenience functions
-   static unique_ptr_Type createFake(std::string name);
+   static boost::shared_ptr<Type> createFake(std::string name);
    /* Placeholder for real type, to be filled in later */
-   static unique_ptr_Type createPlaceholder(typeId_t ID, std::string name = "");
+   static boost::shared_ptr<Type> createPlaceholder(typeId_t ID, std::string name = "");
    
    typeId_t getID() const;
    unsigned int getSize();

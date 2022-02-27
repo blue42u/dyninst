@@ -82,14 +82,13 @@ void Type::updateUniqueTypeId(typeId_t id)
 /* These are the wrappers for constructing a type.  Since we can create
    types six ways to Sunday, let's do them all in one centralized place. */
 
-Type::unique_ptr_Type Type::createFake(std::string name) 
+boost::shared_ptr<Type> Type::createFake(std::string name)
 {
    // Creating a fake type without a name is just silly
    assert(name != std::string(""));
 
-   Type *t = new Type(name);
+   auto t = make_shared<Type>(std::move(name));
    t->type_ = dataNullType;
-
    return t;
 }
 
@@ -112,12 +111,20 @@ const std::size_t Type::max_size = std::max({
   sizeof(derivedType),
 });
 
-Type::unique_ptr_Type Type::createPlaceholder(typeId_t ID, std::string name)
+boost::shared_ptr<Type> Type::createPlaceholder(typeId_t ID, std::string name)
 {
-  void *mem = malloc(max_size);
+  using traits = std::allocator_traits<dyn_allocator<char>>;
+  struct deleter {
+    traits::allocator_type alloc;
+    void operator()(Type* t) {
+      t->~Type();
+      traits::deallocate(alloc, (traits::pointer)t, max_size);
+    }
+  } d;
+  void* mem = traits::allocate(d.alloc, max_size);
   assert(mem);
-  Type *placeholder_type = new(mem) Type(name, ID, dataUnknownType);
-  return placeholder_type;
+  Type *placeholder_type = new(mem) Type(std::move(name), ID, dataUnknownType);
+  return boost::shared_ptr<Type>(placeholder_type, d);
 }
 
 /*
@@ -310,27 +317,27 @@ typeEnum::typeEnum(std::string name)
 
 typeEnum *typeEnum::create(std::string &name, dyn_c_vector< std::pair<std::string, int> *> &constants, Symtab *obj)
 {
-   typeEnum *typ = new typeEnum(name);
+   auto typ = Type::make_shared<typeEnum>(name);
    for(unsigned i=0; i<constants.size();i++)
    	typ->addConstant(constants[i]->first, constants[i]->second);
     
     if(obj)
-       obj->addType(typ);
+       obj->addType(typ.get());
     //obj->addType(typ); TODO: declare a static container if obj is NULL and add to it.
     //Symtab::noObjTypes->push_back(typ); ??
-    return typ;	
+    return typ.get();
 }
 
 typeEnum *typeEnum::create(std::string &name, dyn_c_vector<std::string> &constNames, Symtab *obj)
 {
-   typeEnum *typ = new typeEnum(name);
+   auto typ = Type::make_shared<typeEnum>(name);
    for(unsigned i=0; i<constNames.size();i++)
    	typ->addConstant(constNames[i], i);
     if(obj)
-       obj->addType(typ);
+       obj->addType(typ.get());
     //obj->addType(typ); TODO: declare a static container if obj is NULL and add to it.
     //Symtab::noObjTypes->push_back(typ); ??
-    return typ;	
+    return typ.get();
 }	
 
 dyn_c_vector<std::pair<std::string, int> > &typeEnum::getConstants()
@@ -407,29 +414,29 @@ typePointer *typePointer::create(std::string &name, boost::shared_ptr<Type> ptr,
 {
    if(!ptr)
    	return NULL;
-   typePointer *typ = new typePointer(ptr, name);
+   auto typ = Type::make_shared<typePointer>(ptr, name);
 
    if(obj)
-   	obj->addType(typ);
+   	obj->addType(typ.get());
    //obj->addType(typ); TODO: declare a static container if obj is NULL and add to it.
    //Symtab::noObjTypes->push_back(typ); ??
 				   
-   return typ;	
+   return typ.get();
 }
 
 typePointer *typePointer::create(std::string &name, boost::shared_ptr<Type> ptr, int size, Symtab *obj)
 {
    if(!ptr)
    	return NULL;
-   typePointer *typ = new typePointer(ptr, name);
+   auto typ = Type::make_shared<typePointer>(ptr, name);
    typ->setSize(size);
 
    if(obj)
-   	obj->addType(typ);
+   	obj->addType(typ.get());
    //obj->addType(typ); TODO: declare a static container if obj is NULL and add to it.
    //Symtab::noObjTypes->push_back(typ); ??
 				   
-   return typ;	
+   return typ.get();
 }
 
 bool typePointer::setPtr(boost::shared_ptr<Type> ptr) { 
@@ -489,14 +496,14 @@ typeFunction::typeFunction(boost::shared_ptr<Type> retType, std::string name) :
 
 typeFunction *typeFunction::create(std::string &name, boost::shared_ptr<Type> retType, dyn_c_vector<boost::shared_ptr<Type>> &paramTypes, Symtab *obj)
 {
-    typeFunction *type = new typeFunction(retType, name);
+    auto type = Type::make_shared<typeFunction>(retType, name);
     for(unsigned i=0;i<paramTypes.size();i++)
 	type->addParam(paramTypes[i]);
     if(obj)
-        obj->addType(type);
+        obj->addType(type.get());
     //obj->addType(type); TODO: declare a static container if obj is NULL and add to it.
     //Symtab::noObjTypes->push_back(type); ??
-    return type;
+    return type.get();
 }
 
 boost::shared_ptr<Type> typeFunction::getReturnType(Type::do_share_t) const{
@@ -589,11 +596,11 @@ typeSubrange::typeSubrange(int size, long low, long hi, std::string name)
 
 typeSubrange *typeSubrange::create(std::string &name, int size, long low, long hi, Symtab *obj)
 {
-   typeSubrange *typ = new typeSubrange(size, low, hi, name);
+   auto typ = Type::make_shared<typeSubrange>(size, low, hi, name);
 
    if(obj)
-       obj->addType(typ);
-   return typ;
+       obj->addType(typ.get());
+   return typ.get();
 }
 
 bool typeSubrange::isCompatible(Type *otype) {
@@ -641,12 +648,12 @@ typeArray::typeArray(boost::shared_ptr<Type> base,
 
 typeArray *typeArray::create(std::string &name, boost::shared_ptr<Type> type, long low, long hi, Symtab *obj)
 {
-	typeArray *typ = new typeArray(type, low, hi, name);
+	auto typ = Type::make_shared<typeArray>(type, low, hi, name);
 
 	if(obj)
-		obj->addType(typ);
+		obj->addType(typ.get());
 
-	return typ;	
+	return typ.get();
 }
 
 bool typeArray::operator==(const Type &otype) const 
@@ -786,7 +793,7 @@ typeStruct *typeStruct::create(std::string &name, dyn_c_vector< std::pair<std::s
                                                                 Symtab *obj)
 {
    int offset = 0;
-   typeStruct *typ = new typeStruct(name);
+   auto typ = Type::make_shared<typeStruct>(name);
    for(unsigned i=0;i<flds.size();i++)
    {
    	   typ->addField(flds[i]->first, flds[i]->second, offset);
@@ -794,24 +801,24 @@ typeStruct *typeStruct::create(std::string &name, dyn_c_vector< std::pair<std::s
        offset += (flds[i]->second->getSize() * 8);
    }
    if(obj)
-   	obj->addType(typ);
+   	obj->addType(typ.get());
    //obj->addType(typ); TODO: declare a static container if obj is NULL and add to it.
    //Symtab::noObjTypes->push_back(typ); ??
 				   
-   return typ;	
+   return typ.get();
 }
 
 typeStruct *typeStruct::create(std::string &name, dyn_c_vector<Field *> &flds, Symtab *obj)
 {
-   typeStruct *typ = new typeStruct(name);
+   auto typ = Type::make_shared<typeStruct>(name);
    for(unsigned i=0;i<flds.size();i++)
    	typ->addField(flds[i]);
    if(obj)
-   	obj->addType(typ);
+   	obj->addType(typ.get());
    //obj->addType(typ); TODO: declare a static container if obj is NULL and add to it.
    //Symtab::noObjTypes->push_back(typ); ??
 				   
-   return typ;	
+   return typ.get();
 }
 
 void typeStruct::merge(Type *other) {
@@ -921,28 +928,28 @@ typeUnion::typeUnion(std::string name)  :
 typeUnion *typeUnion::create(std::string &name, dyn_c_vector< std::pair<std::string, boost::shared_ptr<Type>> *> &flds,
                                                                 Symtab *obj)
 {
-   typeUnion *typ = new typeUnion(name);
+   auto typ = Type::make_shared<typeUnion>(name);
    for(unsigned i=0;i<flds.size();i++)
    	typ->addField(flds[i]->first, flds[i]->second, 0);
    if(obj)
-   	obj->addType(typ);
+   	obj->addType(typ.get());
    //obj->addType(typ); TODO: declare a static container if obj is NULL and add to it.
    //Symtab::noObjTypes->push_back(typ); ??
 				   
-   return typ;	
+   return typ.get();
 }
 
 typeUnion *typeUnion::create(std::string &name, dyn_c_vector<Field *> &flds, Symtab *obj)
 {
-   typeUnion *typ = new typeUnion(name);
+   auto typ = Type::make_shared<typeUnion>(name);
    for(unsigned i=0;i<flds.size();i++)
    	typ->addField(flds[i]);
    if(obj)
-   	obj->addType(typ);
+   	obj->addType(typ.get());
    //obj->addType(typ); TODO: declare a static container if obj is NULL and add to it.
    //Symtab::noObjTypes->push_back(typ); ??
 				   
-   return typ;	
+   return typ.get();
 }
 
 void typeUnion::merge(Type *other) {
@@ -1039,14 +1046,14 @@ void typeUnion::fixupUnknowns(Module *module) {
  */
 typeScalar *typeScalar::create(std::string &name, int size, Symtab *obj)
 {
-   typeScalar *typ = new typeScalar(size, name);
+   auto typ = Type::make_shared<typeScalar>(size, name);
    
    if(obj)
-   	obj->addType(typ);
+   	obj->addType(typ.get());
    //obj->addType(typ); TODO: declare a static container if obj is NULL and add to it.
    //Symtab::noObjTypes->push_back(typ); ??
 				   
-   return typ;	
+   return typ.get();
 }
 
 bool typeScalar::isCompatible(Type *otype) {
@@ -1198,14 +1205,14 @@ typeTypedef *typeTypedef::create(std::string &name, boost::shared_ptr<Type> base
 {
    if(!baseType)
    	return NULL;
-   typeTypedef *typ = new typeTypedef(baseType, name);
+   auto typ = Type::make_shared<typeTypedef>(baseType, name);
 
    if(obj)
-   	obj->addType(typ);
+   	obj->addType(typ.get());
    //obj->addType(typ); TODO: declare a static container if obj is NULL and add to it.
    //Symtab::noObjTypes->push_back(typ); ??
 				   
-   return typ;	
+   return typ.get();
 }
 
 bool typeTypedef::operator==(const Type &otype) const {
@@ -1269,14 +1276,14 @@ typeRef::typeRef(boost::shared_ptr<Type> refType, std::string name) :
 
 typeRef *typeRef::create(std::string &name, boost::shared_ptr<Type> ref, Symtab *obj)
 {
-   typeRef *typ = new typeRef(ref, name);
+   auto typ = Type::make_shared<typeRef>(ref, name);
 
    if(obj)
-   	obj->addType(typ);
+   	obj->addType(typ.get());
    //obj->addType(typ); TODO: declare a static container if obj is NULL and add to it.
    //Symtab::noObjTypes->push_back(typ); ??
 				   
-   return typ;	
+   return typ.get();
 }
 
 bool typeRef::operator==(const Type &otype) const {
