@@ -191,8 +191,7 @@ public:
    typeId_t getID() const;
    unsigned int getSize();
    bool setSize(unsigned int size);
-   std::string &getName();
-   bool setName(std::string);
+   const std::string &getName() const;
    dataClass getDataClass() const;
 
    //Methods to dynamically cast generic Type Object to specific types.

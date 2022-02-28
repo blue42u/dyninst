@@ -36,6 +36,7 @@
 #include "Variable.h"
 #include <boost/core/enable_if.hpp>
 #include <boost/type_traits/is_same.hpp>
+#include <boost/utility/string_view.hpp>
 
 namespace Dyninst {
 
@@ -82,8 +83,19 @@ class SYMTAB_EXPORT typeCollection
     friend class Type;
     friend class DwarfWalker;
 
-    dyn_c_hash_map<std::string, boost::shared_ptr<Type>> typesByName;
-    dyn_c_hash_map<std::string, boost::shared_ptr<Type>> globalVarsByName;
+    struct string_view_compare {
+      static size_t hash(const boost::string_view& sv) {
+        return boost::hash<boost::string_view>{}(sv);
+      }
+      static bool equal(const boost::string_view& a, const boost::string_view& b) {
+        return a == b;
+      }
+    };
+
+    dyn_c_hash_map<boost::string_view, boost::shared_ptr<Type>,
+                   string_view_compare> typesByName;
+    dyn_c_hash_map<boost::string_view, boost::shared_ptr<Type>,
+                   string_view_compare> globalVarsByName;
     dyn_c_hash_map<int, boost::shared_ptr<Type>> typesByID;
 
 
@@ -179,8 +191,18 @@ public:
 
 class SYMTAB_EXPORT builtInTypeCollection {
 
+    struct string_view_compare {
+      static size_t hash(const boost::string_view& sv) {
+        return boost::hash<boost::string_view>{}(sv);
+      }
+      static bool equal(const boost::string_view& a, const boost::string_view& b) {
+        return a == b;
+      }
+    };
+
     dyn_c_hash_map<int, boost::shared_ptr<Type>> builtInTypesByID;
-    dyn_c_hash_map<std::string, boost::shared_ptr<Type>> builtInTypesByName;
+    dyn_c_hash_map<boost::string_view, boost::shared_ptr<Type>,
+                   string_view_compare> builtInTypesByName;
 public:
 
     builtInTypeCollection();

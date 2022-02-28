@@ -54,7 +54,7 @@ using namespace std;
 //#include "collections.h"
 //#include "debug.h" TODO: We want such behaviour. LATER!
 
-static int findIntrensicType(std::string &name);
+static int findIntrensicType(const std::string &name);
 
 // This is the ID that is decremented for each type a user defines. It is
 // Global so that every type that the user defines has a unique ID.
@@ -211,16 +211,9 @@ bool Type::setSize(unsigned int size)
 	return true;
 }
 
-std::string &Type::getName()
+const std::string &Type::getName() const
 {
     return name_;
-}
-
-bool Type::setName(std::string name)
-{
-    if (name.empty()) return false;
-    name_ = std::move(name);
-    return true;
 }
 
 typeId_t Type::getID() const
@@ -1580,7 +1573,7 @@ struct intrensicTypes_ intrensicTypes[] = {
     { NULL,		0 },
 };
 
-static int findIntrensicType(std::string &name)
+static int findIntrensicType(const std::string &name)
 {
     struct intrensicTypes_ *curr;
 

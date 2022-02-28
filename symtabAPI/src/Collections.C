@@ -255,9 +255,9 @@ typeCollection::~typeCollection() {}
  */
 boost::shared_ptr<Type> typeCollection::findType(std::string name, Type::do_share_t)
 {
-    dyn_c_hash_map<std::string, boost::shared_ptr<Type>>::const_accessor a;
+   decltype(typesByName)::const_accessor a;
 
-    if (typesByName.find(a, name))
+    if (typesByName.find(a, boost::string_view(name)))
     	return a->second;
     else if (Symtab::builtInTypes())
         return Symtab::builtInTypes()->findBuiltInType(name, Type::share);
@@ -267,7 +267,7 @@ boost::shared_ptr<Type> typeCollection::findType(std::string name, Type::do_shar
 
 boost::shared_ptr<Type> typeCollection::findTypeLocal(std::string name, Type::do_share_t)
 {
-    dyn_c_hash_map<std::string, boost::shared_ptr<Type>>::const_accessor a;
+    decltype(typesByName)::const_accessor a;
 
     if (typesByName.find(a, name))
         return a->second;
@@ -343,7 +343,7 @@ boost::shared_ptr<Type> typeCollection::findType(const int ID, Type::do_share_t)
  */
 boost::shared_ptr<Type> typeCollection::findVariableType(std::string &name, Type::do_share_t)
 {
-    dyn_c_hash_map<std::string, boost::shared_ptr<Type>>::const_accessor a;
+    decltype(globalVarsByName)::const_accessor a;
     if (globalVarsByName.find(a, name))
         return a->second;
     else
@@ -393,7 +393,7 @@ void typeCollection::getAllTypes(std::vector<boost::shared_ptr<Type>>& vec) {
 void typeCollection::getAllGlobalVariables(vector<pair<string, boost::shared_ptr<Type>>>& vec) {
     for(auto it = globalVarsByName.begin();
         it != globalVarsByName.end(); it++) {
-	vec.push_back(make_pair(it->first, it->second));
+	vec.push_back(make_pair(string(it->first), it->second));
    }
 }
 
@@ -435,7 +435,7 @@ builtInTypeCollection::~builtInTypeCollection()
  */
 boost::shared_ptr<Type> builtInTypeCollection::findBuiltInType(std::string &name, Type::do_share_t)
 {
-    dyn_c_hash_map<std::string, boost::shared_ptr<Type>>::const_accessor a;
+    decltype(builtInTypesByName)::const_accessor a;
     if (builtInTypesByName.find(a, name))
        return a->second;
     else
