@@ -137,7 +137,7 @@ public:
     Type* findOrCreateType(const int i) { return findOrCreateType(i, Type::share).get(); }
     template<class T>
     typename boost::enable_if<
-        boost::integral_constant<bool, !bool(boost::is_same<Type, T>::value)>,
+        boost::integral_constant<bool, !bool(boost::is_same<Type, boost::remove_cv_t<T>>::value)>,
     boost::shared_ptr<Type>>::type addOrUpdateType(boost::shared_ptr<T> type);
     template<class T>
     T* addOrUpdateType(T* t) {

@@ -39,7 +39,7 @@ using namespace Dyninst;
 using namespace SymtabAPI;
 
 template<class T>
-T *upgradePlaceholder(Type *placeholder, T *new_type)
+static T *upgradePlaceholder(Type *placeholder, T *new_type)
 {
     assert(sizeof(T) <= Type::max_size);
     memset(static_cast<void*>(placeholder), 0, Type::max_size);
@@ -51,7 +51,7 @@ T *upgradePlaceholder(Type *placeholder, T *new_type)
 
 template<class T>
 typename boost::enable_if<
-    boost::integral_constant<bool, !bool(boost::is_same<Type, T>::value)>,
+    boost::integral_constant<bool, !bool(boost::is_same<Type, boost::remove_cv_t<T>>::value)>,
 boost::shared_ptr<Type>>::type typeCollection::addOrUpdateType(boost::shared_ptr<T> type)
 {
 	//Instanciating this function for 'Type' would be a mistake, which
