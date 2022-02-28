@@ -40,6 +40,7 @@
 #include <tbb/concurrent_hash_map.h>
 #include <tbb/concurrent_vector.h>
 #include <tbb/concurrent_queue.h>
+#include <tbb/tbb_allocator.h>
 
 namespace Dyninst {
 
@@ -52,12 +53,15 @@ namespace dyn_c_annotations {
     void COMMON_EXPORT runlock(void*);
 }
 
+template<class T>
+using dyn_allocator = tbb::tbb_allocator<T>;
+
 template<typename K, typename V, typename HC = tbb::tbb_hash_compare<K>>
 class dyn_c_hash_map : protected tbb::concurrent_hash_map<K, V,
-    HC, std::allocator<std::pair<K,V>>> {
+    HC, dyn_allocator<std::pair<K,V>>> {
 
     typedef tbb::concurrent_hash_map<K, V,
-        HC, std::allocator<std::pair<K,V>>> base;
+        HC, dyn_allocator<std::pair<K,V>>> base;
 public:
     using typename base::value_type;
     using typename base::mapped_type;
@@ -154,10 +158,12 @@ public:
 };
 
 template<typename T>
-using dyn_c_vector = tbb::concurrent_vector<T, std::allocator<T>>;
+using dyn_c_vector = tbb::concurrent_vector<T, dyn_allocator<T>>;
 
 template<typename T>
-using dyn_c_queue = tbb::concurrent_queue<T, std::allocator<T>>;
+using dyn_c_queue = tbb::concurrent_queue<T, dyn_allocator<T>>;
+
+using dyn_string = std::basic_string<char, std::char_traits<char>, dyn_allocator<char>>;
 
 class dyn_mutex : public boost::mutex {
 public:
