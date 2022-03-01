@@ -117,7 +117,8 @@ namespace Dyninst {
                                     boost::multi_index::ordered_non_unique< boost::multi_index::tag<typename Value::addr_range>, addr_range_key>,
                                     boost::multi_index::ordered_non_unique< boost::multi_index::tag<typename Value::upper_bound>, upper_bound_key>,
                                     boost::multi_index::ordered_non_unique< boost::multi_index::tag<typename Value::line_info>, line_info_key >
-                            >
+                            >,
+                            dyn_allocator<typename Value::Ptr>
                     > type;
             typedef typename boost::multi_index::index<type, typename Value::addr_range>::type addr_range_index;
             typedef typename boost::multi_index::index<type, typename Value::upper_bound>::type upper_bound_index;
